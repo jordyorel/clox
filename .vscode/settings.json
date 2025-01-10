@@ -1,0 +1,14 @@
+{
+    "files.associations": {
+        "__assert": "cpp",
+        "__assertion_handler": "cpp",
+        "__availability": "cpp",
+        "__config": "cpp",
+        "__verbose_abort": "cpp",
+        "ostream": "cpp",
+        "print": "cpp",
+        "string": "cpp",
+        "system_error": "cpp",
+        "complex": "cpp"
+    }
+}
