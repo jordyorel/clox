@@ -22,7 +22,7 @@ typedef enum {
   TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE,
   TOKEN_FOR, TOKEN_FN, TOKEN_IF, TOKEN_NIL, TOKEN_OR,
   TOKEN_PRINT, TOKEN_RETURN, TOKEN_SUPER, TOKEN_THIS,
-  TOKEN_TRUE, TOKEN_LET, TOKEN_WHILE,
+  TOKEN_TRUE, TOKEN_LET, TOKEN_WHILE, TOKEN_STR, TOKEN_INT, TOKEN_IN, 
 
   TOKEN_ERROR, TOKEN_EOF
 } TokenType;
@@ -39,6 +39,11 @@ typedef struct {
     const char* current;
     int line;
 } Scanner;
+
+typedef struct {
+    const char* keyword;
+    TokenType type;
+} KeywordEntry;
 
 void init_scanner(const char* source);
 Token scan_token();

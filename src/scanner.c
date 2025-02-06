@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 
 #include "scanner.h"
@@ -8,40 +9,98 @@
 
 Scanner scanner;
 
+// Hash table size (should be a prime number for better distribution)
+#define HASH_TABLE_SIZE 67
+
+// Hash table for keywords
+KeywordEntry keywordTable[HASH_TABLE_SIZE];
+
+// Hash function (djb2 algorithm)
+unsigned int hash(const char* str) {
+    unsigned int hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;  // hash * 33 + c
+    }
+    return hash % HASH_TABLE_SIZE;
+}
+
+void init_keyword_table() {
+    const char* keywords[] = {
+        "and", "class", "else", "false", "for", "fn", "if", "nil", "or",
+        "print", "return", "super", "this", "true", "let", "while", "str", 
+        "int", "in", NULL
+    };
+    TokenType types[] = {
+        TOKEN_AND, TOKEN_CLASS, TOKEN_ELSE, TOKEN_FALSE, TOKEN_FOR, TOKEN_FN,
+        TOKEN_IF, TOKEN_NIL, TOKEN_OR, TOKEN_PRINT, TOKEN_RETURN, TOKEN_SUPER,
+        TOKEN_THIS, TOKEN_TRUE, TOKEN_LET, TOKEN_WHILE, TOKEN_STR, TOKEN_INT, TOKEN_IN,
+    };
+
+    for (int i = 0; keywords[i] != NULL; i++) {
+        unsigned int index = hash(keywords[i]);
+        while (keywordTable[index].keyword != NULL) {
+            index = (index + 1) % HASH_TABLE_SIZE; // Linear probing for collisions
+        }
+        keywordTable[index].keyword = keywords[i];
+        keywordTable[index].type = types[i];
+    }
+}
+
+// Look up a keyword in the hash table
+TokenType get_keyword_type(const char* keyword) {
+    unsigned int index = hash(keyword);
+    while (keywordTable[index].keyword != NULL) {
+        if (strcmp(keywordTable[index].keyword, keyword) == 0) {
+            return keywordTable[index].type;
+        }
+        index = (index + 1) % HASH_TABLE_SIZE;  // Linear probing for collisions
+    }
+    return TOKEN_IDENTIFIER;  // Not a keyword
+}
+
 void init_scanner(const char* source) {
     scanner.start = source;
     scanner.current = source;
     scanner.line = 1;
+    init_keyword_table();
 }
 
+// Check if a character is alphabetic
 static bool is_alpha(char c) {
-    return (c >= 'a' && c <= 'z') ||
-            (c >= 'A' && c<= 'Z') ||
+    return (c >= 'a' && c <= 'z') || 
+            (c >= 'A' && c <= 'Z') || 
             c == '_';
 }
 
-static bool is_digit(char c) {
-    return c >= '0' && c <= '9';
+// Check if a character is a digit
+static bool is_digit(char c) { 
+    return c >= '0' && c <= '9'; 
 }
 
-static bool is_at_end() {
-    return *scanner.current == '\0';
+// Check if the scanner has reached the end of the source
+static bool is_at_end() { 
+    return *scanner.current == '\0'; 
 }
 
+// Advance the scanner and return the current character
 static char advance() {
     scanner.current++;
     return scanner.current[-1];
 }
 
-static char peek() {
-    return *scanner.current;
+// Peek at the current character
+static char peek() { 
+    return *scanner.current; 
 }
 
+// Peek at the next character
 static char peek_next() {
     if (is_at_end()) return '\0';
     return scanner.current[1];
 }
 
+// Match the current character with an expected character
 static bool match(char expected) {
     if (is_at_end()) return false;
     if (*scanner.current != expected) return false;
@@ -49,6 +108,7 @@ static bool match(char expected) {
     return true;
 }
 
+// Create a token
 static Token make_token(TokenType type) {
     Token token;
     token.type = type;
@@ -58,6 +118,7 @@ static Token make_token(TokenType type) {
     return token;
 }
 
+// Create an error token
 static Token error_token(const char* message) {
     Token token;
     token.type = TOKEN_ERROR;
@@ -67,6 +128,7 @@ static Token error_token(const char* message) {
     return token;
 }
 
+// Skip whitespace and comments
 static void skip_whitespace() {
     for (;;) {
         char c = peek();
@@ -86,103 +148,99 @@ static void skip_whitespace() {
                     while (peek() != '\n' && !is_at_end()) advance();
                 } else if (peek_next() == '*') {
                     // Block comment
-                    advance();  // Skip '/'
-                    advance();  // Skip '*'
+                    advance();
+                    advance();
                     while (!is_at_end()) {
                         if (peek() == '*' && peek_next() == '/') {
-                            advance();  // Skip '*'
-                            advance();  // Skip '/'
-                            continue;
+                            advance();
+                            advance();
+                            break;
                         }
                         if (peek() == '\n') scanner.line++;
                         advance();
                     }
-                    if (is_at_end()) return;
+                    if (is_at_end()) error_token("Unterminated block comment.");
                 } else {
-                    return;  // Not a comment, return
+                    return;
                 }
                 break;
             default:
-                return;  // Return on any other character
+                return;
         }
     }
 }
 
-static TokenType check_keyword(int start, int length,
- const char* rest, TokenType type) {
-    if (scanner.current - scanner.start == start + length && 
-    memcmp(scanner.start + start, rest, length) == 0) {
-        return type;
-    }
-    return TOKEN_IDENTIFIER;
-}
-
-
-static TokenType identifier_type() {
-    switch (scanner.start[0]) {
-        case 'a': return check_keyword(1, 2, "nd", TOKEN_AND);
-        case 'c': return check_keyword(1, 4, "lass", TOKEN_CLASS);
-        case 'e': return check_keyword(1, 3, "lse", TOKEN_ELSE);
-        case 'f': {
-            if (scanner.current - scanner.start > 1) {
-                switch (scanner.start[1]) {
-                    case 'a': return check_keyword(2, 3, "lse", TOKEN_FALSE);
-                    case 'o': return check_keyword(2, 1, "r", TOKEN_FOR);
-                    case 'n': return check_keyword(2, 0, "", TOKEN_FN);
-                }
-            }
-        } 
-        break;
-        case 'i': return check_keyword(1, 1, "f", TOKEN_IF);
-        case 'n': return check_keyword(1, 2, "il", TOKEN_NIL);
-        case 'o': return check_keyword(1, 1, "r", TOKEN_OR);
-        case 'p': return check_keyword(1, 4, "rint", TOKEN_PRINT);
-        case 'r': return check_keyword(1, 5, "eturn", TOKEN_RETURN);
-        case 's': return check_keyword(1, 4, "uper", TOKEN_SUPER);
-        case 't': {
-            if (scanner.current - scanner.start > 1) {
-                switch (scanner.start[1]) {
-                    case 'h': return check_keyword(2, 2, "is", TOKEN_THIS);
-                    case 'r': return check_keyword(2, 2, "ue", TOKEN_TRUE);
-                }
-            }
-            
-        }
-        break;
-        case 'l': return check_keyword(1, 2, "et", TOKEN_LET);
-        case 'w': return check_keyword(1, 4, "hile", TOKEN_WHILE);
-    }
-    return TOKEN_IDENTIFIER;
-}
-
+// Scan an identifier or keyword
 static Token identifier() {
     while (is_alpha(peek()) || is_digit(peek())) advance();
-    return make_token(identifier_type());
+    char* identifier = strndup(scanner.start, scanner.current - scanner.start);
+    TokenType type = get_keyword_type(identifier);
+    free(identifier);
+    return make_token(type);
 }
 
+// Scan a number literal
 static Token number() {
     while (is_digit(peek())) advance();
 
-    // Look for fractional part
+    // Look for a fractional part.
     if (peek() == '.' && is_digit(peek_next())) {
-        advance();
-
+        advance();  // Consume the dot.
         while (is_digit(peek())) advance();
     }
 
+    // Optional: support scientific notation (e.g., 1.23e-4)
+    if (peek() == 'e' || peek() == 'E') {
+        advance(); // Consume 'e' or 'E'
+        if (peek() == '-' || peek() == '+') {
+            advance(); // Consume the sign
+        }
+        if (!is_digit(peek())) {
+            return error_token("Invalid scientific notation: Expected digit after 'e' or 'E'.");
+        }
+        while (is_digit(peek())) {
+            advance();
+        }
+    }
+
+    char* start = scanner.start;
+    while(true) {
+        if (peek() == '_') {
+            advance();
+            if (!is_digit(peek())) {
+                return error_token("Invalid underscore placement in number.");
+            }
+        } else if (is_digit(peek())) {
+            advance();
+        } else if (peek() == '.' || peek() == 'e' || peek() == 'E' || is_at_end() || !is_alpha(peek())) { //stop at dot or e or non-alphanumeric character
+            break;
+        } else {
+            break;
+        }
+    }
+    scanner.start = start;
     return make_token(TOKEN_NUMBER);
 }
 
+// Scan a string literal
 static Token string() {
     while (peek() != '"' && !is_at_end()) {
         if (peek() == '\n') scanner.line++;
-        advance();
+        if (peek == '\\') {
+            advance();
+            switch (peek()) {
+                case 'n': advance();  // New line
+                    break;
+                default:
+                    return error_token("Invalid escape sequence.");
+            }
+        } else {
+            advance();
+        }
     }
 
     if (is_at_end()) return error_token("Unterminated string.");
-
-    // The closing quote.
-    advance();
+    advance();  // Consume the closing quote
     return make_token(TOKEN_STRING);
 }
 
