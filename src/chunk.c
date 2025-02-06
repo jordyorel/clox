@@ -1,3 +1,4 @@
+
 #include<stdlib.h>
 #include<stdio.h>
 
@@ -79,8 +80,8 @@ int addConstant(Chunk* chunk, Value value) {
     return chunk->constants.count - 1;
 }
 
-int len(Chunk* chunk) {
-    return chunk->count;
+int len(Chunk* chunk) { 
+    return chunk->count; 
 }
 
 int get_line(Chunk* chunk, int instruction_offset) {
@@ -95,8 +96,7 @@ int get_line(Chunk* chunk, int instruction_offset) {
 }
 
 uint8_t get_code(Chunk* chunk, int offset) {
-    if (offset < 0 ||
-        offset >= chunk->count - 1) {
+    if (offset < 0 || offset >= chunk->count - 1) {
         printf("Invalid operand access at offset %d\n", offset);
         exit(EXIT_FAILURE);
     }

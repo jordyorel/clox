@@ -1,9 +1,10 @@
-#include "vm.h"
 
+#include "vm.h"
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "common.h"
+#include "compiler.h"
 #include "debug.h"
 #include "memory.h"
 
@@ -53,8 +54,15 @@ static InterpretResult run(VM* vm) {
             (READ_BYTE () << 8) | \
             (READ_BYTE()) \
         ])
+    #define BINARY_OP(op)           \
+        do {                        \
+            double b = pop(vm);     \
+            double a = pop(vm);     \
+            push(vm, a op b);       \
+        } while (false)
 
-    for(;;) {
+    // Run until the end of the chunk
+    for(;;) { // modified from while (vm->ip < vm->code_end) to current version
         #ifdef DEBUG_TRACE_EXECUTION
             printf("Stack: [ ");
             for (Value* slot = vm->stack; slot < vm->stackTop; slot++) {
@@ -81,9 +89,25 @@ static InterpretResult run(VM* vm) {
                 push(vm, constant);
                 break;
             }
+            case OP_ADD: {
+                BINARY_OP(+);
+                break;
+            }
+            case OP_SUBTRACT: {
+                BINARY_OP(-);
+                break;
+            }
+            case OP_MULTIPLY: {
+                BINARY_OP(*);
+                break;
+            }
+            case OP_DIVIDE: {
+                BINARY_OP(/);
+                break;
+            }
             case OP_NEGATE:{
-                Value top = pop(vm);
-                push(vm, -top);
+                // Value top = pop(vm);
+                push(vm, -(pop(vm)));
                 break;
             }
             case OP_RETURN: {
@@ -94,14 +118,43 @@ static InterpretResult run(VM* vm) {
             }
         }
     }
+
+    // testing
+    // Implicit termination at end of chunk (NEW)
+    // if (vm->stackTop > 0) {
+    //     printf("last slot: ");
+    //     printValue(pop(vm));
+    //     printf("\n");
+    // }
+    return INTERPRET_OK;
+
     #undef READ_BYTE
     #undef READ_CONSTANT
     #undef READ_CONSTANT_LONG
+    #undef BINARY_OP
 }
 
-InterpretResult interpret(VM* vm, Chunk* chunk) {
-    vm->chunk = chunk;
-    vm->ip = vm->chunk->code;
-    return run(vm);
+InterpretResult interpret(const char* source) {
+    compile(source);
+    VM vm;
+    initVm(&vm);
+
+    return INTERPRET_OK;
+    // return run(&vm);
 }
 
+// InterpretResult interpret(VM* vm, Chunk* chunk) {
+//     // Check that the chunk ends with OP_RETURN
+//     if (chunk->code[chunk->count - 1] != OP_RETURN) {
+//         fprintf(stderr, "Error: Bytecode must end with OP_RETURN.\n");
+//         return INTERPRET_COMPILE_ERROR;  // or exit() if you prefer to terminate
+//     }
+
+//     vm->chunk = chunk;
+//     vm->ip = vm->chunk->code;
+
+//     // testing
+//     vm->code_end = chunk->code + chunk->count;
+
+//     return run(vm);
+// }

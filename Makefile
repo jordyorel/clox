@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-I./src -Wall
+CFLAGS=-I./src -Wall -g
 SRC=$(wildcard src/*.c)
 OBJ=$(patsubst src/%.c, build/debug/clox/%.o, $(SRC))
 TARGET=clox

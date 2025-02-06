@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 
 #include "debug.h"
@@ -6,9 +7,9 @@
 void disassembleChunk(Chunk* chunk, const char* name) {
     printf("== %s ==\n", name);
 
-    for(int offset = 0; offset < len(chunk);) {
+    for (int offset = 0; offset < len(chunk);) {
         offset = disassembleInstruction(chunk, offset);
-    } 
+    }
 }
 
 // Handles the disassembly of instructions that have a single operand (a
@@ -58,6 +59,14 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             printf("'\n");
             return offset + 4;
         }
+        case OP_ADD:
+            return simpleInstruction("OP_ADD", offset);
+        case OP_SUBTRACT:
+            return simpleInstruction("OP_SUBTRACT", offset);
+        case OP_MULTIPLY:
+            return simpleInstruction("OP_MULTIPLY", offset);
+        case OP_DIVIDE:
+            return simpleInstruction("OP_DIVIDE", offset);
         case OP_NEGATE:
             return simpleInstruction("OP_NEGATE", offset);
         default:
@@ -65,7 +74,6 @@ int disassembleInstruction(Chunk* chunk, int offset) {
             return offset + 1;
     }
 }
-
 
 // Handles the disassembly of simple 1-byte instructions (no operands).
 // Parameters:

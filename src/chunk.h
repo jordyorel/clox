@@ -1,3 +1,4 @@
+
 #ifndef clox_chunk_h
 #define clox_chunk_h
 
@@ -10,10 +11,21 @@
 /// each corresponding to a unique byte value. The values represent
 /// the different operations that can be performed in the virtual machine.
 typedef enum {
-    OP_RETURN,
-    OP_NEGATE,
+    // op constant
     OP_CONSTANT,
-    OP_CONSTANT_LONG
+    OP_CONSTANT_LONG,
+
+    // Binary op
+    OP_ADD,
+    OP_SUBTRACT,
+    OP_MULTIPLY,
+    OP_DIVIDE,
+
+    // negate op
+    OP_NEGATE,
+
+    OP_RETURN,
+    
 } opCode;
 
 typedef struct {
